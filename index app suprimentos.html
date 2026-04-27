@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Suprimentos — Triagem de Pedidos</title>
+<style>
+  :root {
+    --bg: #F7F5F0;
+    --surface: #FFFFFF;
+    --border: #E2DDD6;
+    --border-strong: #C8C2B8;
+    --text: #1A1814;
+    --text-muted: #7A756D;
+    --text-light: #A8A39B;
+    --accent: #2D5A3D;
+    --accent-light: #EAF2ED;
+    --accent-text: #1A3D28;
+    --warn: #7A4A0A;
+    --warn-light: #FDF3E3;
+    --warn-text: #5A3508;
+    --danger: #8B2020;
+    --danger-light: #FDF0F0;
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 16px;
+    --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Georgia', serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 0;
+  }
+
+  header {
+    background: var(--accent);
+    padding: 1.25rem 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  header h1 {
+    font-size: 1rem;
+    font-weight: normal;
+    color: #fff;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-family: 'Georgia', serif;
+  }
+
+  header span {
+    font-size: 0.75rem;
+    color: rgba(255,255,255,0.6);
+    font-family: monospace;
+    letter-spacing: 0.04em;
+  }
+
+  .container {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem;
+  }
+
+  /* API Key setup */
+  .setup-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: var(--shadow);
+  }
+
+  .setup-card h2 {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-muted);
+    margin-bottom: 0.75rem;
+    font-weight: normal;
+  }
+
+  .api-row {
+    display: flex;
+    gap: 8px;
+  }
+
+  .api-row input {
+    flex: 1;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-family: monospace;
+    background: var(--bg);
+    color: var(--text);
+    outline: none;
+  }
+
+  .api-row input:focus { border-color: var(--accent); }
+
+  .api-status {
+    font-size: 12px;
+    margin-top: 6px;
+    color: var(--text-light);
+  }
+
+  .api-status.ok { color: var(--accent); }
+  .api-status.erro { color: var(--danger); }
+
+  /* Steps */
+  .step { display: none; }
+  .step.active { display: block; }
+
+  /* Input area */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    box-shadow: var(--shadow);
+    margin-bottom: 1rem;
+  }
+
+  .label {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+    display: block;
+  }
+
+  textarea {
+    width: 100%;
+    min-height: 160px;
+    resize: vertical;
+    padding: 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    font-size: 14px;
+    font-family: 'Georgia', serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  textarea:focus { border-color: var(--accent); }
+
+  textarea::placeholder { color: var(--text-light); font-style: italic; }
+
+  .btn-row { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+
+  .btn {
+    padding: 10px 20px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    cursor: pointer;
+    font-family: 'Georgia', serif;
+    border: none;
+    transition: all 0.15s;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #fff;
+    font-weight: bold;
+    letter-spacing: 0.03em;
+  }
+
+  .btn-primary:hover { background: var(--accent-text); }
+  .btn-primary:disabled { opacity: 0.4; cursor: default; }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+  }
+
+  .btn-ghost:hover { background: var(--bg); color: var(--text); }
+
+  /* Loading */
+  .loading {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 2rem 0;
+    color: var(--text-muted);
+    font-size: 14px;
+    font-style: italic;
+  }
+
+  .spinner {
+    width: 18px;
+    height: 18px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    flex-shrink: 0;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Pedido card */
+  .pedido-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    margin-bottom: 12px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+
+  .pedido-header {
+    background: var(--accent);
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .pedido-obra {
+    font-size: 13px;
+    font-weight: bold;
+    color: #fff;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .pedido-count {
+    font-size: 11px;
+    color: rgba(255,255,255,0.6);
+  }
+
+  .item-row {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    display: grid;
+    grid-template-columns: 1fr 90px auto;
+    gap: 8px;
+    align-items: start;
+  }
+
+  .item-row:last-child { border-bottom: none; }
+
+  .item-nome {
+    font-size: 14px;
+    color: var(--text);
+    line-height: 1.4;
+    padding-top: 2px;
+  }
+
+  .item-qtd {
+    font-size: 13px;
+    color: var(--text-muted);
+    text-align: center;
+    padding-top: 4px;
+    font-family: monospace;
+  }
+
+  .toggle-wrap { display: flex; flex-direction: column; gap: 4px; align-items: flex-end; }
+
+  .toggle-group {
+    display: flex;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+  }
+
+  .toggle-btn {
+    padding: 5px 10px;
+    font-size: 11px;
+    border: none;
+    cursor: pointer;
+    font-family: 'Georgia', serif;
+    background: transparent;
+    color: var(--text-muted);
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+
+  .toggle-btn:hover { background: var(--bg); }
+  .toggle-btn.disp { background: var(--accent-light); color: var(--accent-text); font-weight: bold; }
+  .toggle-btn.pend { background: var(--warn-light); color: var(--warn-text); font-weight: bold; }
+
+  .obs-field {
+    font-size: 12px;
+    padding: 4px 8px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg);
+    color: var(--text-muted);
+    font-family: 'Georgia', serif;
+    outline: none;
+    width: 100%;
+    margin-top: 4px;
+  }
+
+  .obs-field:focus { border-color: var(--accent); color: var(--text); }
+
+  /* Resumo */
+  .resumo-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    margin-bottom: 12px;
+    box-shadow: var(--shadow);
+  }
+
+  .resumo-header {
+    padding: 10px 16px;
+    font-size: 11px;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+
+  .resumo-header.disp { background: var(--accent-light); color: var(--accent-text); }
+  .resumo-header.pend { background: var(--warn-light); color: var(--warn-text); }
+
+  .resumo-obra { padding: 10px 16px; border-bottom: 1px solid var(--border); }
+  .resumo-obra:last-child { border-bottom: none; }
+  .resumo-obra-nome { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); margin-bottom: 4px; }
+  .resumo-item-linha { font-size: 14px; color: var(--text); padding: 2px 0; }
+
+  .pre-box {
+    background: #1A1814;
+    color: #D4CFC9;
+    border-radius: var(--radius-md);
+    padding: 16px;
+    font-family: monospace;
+    font-size: 13px;
+    line-height: 1.7;
+    white-space: pre-wrap;
+    word-break: break-word;
+    margin-top: 8px;
+  }
+
+  .copy-feedback { font-size: 12px; color: var(--accent); margin-left: 8px; opacity: 0; transition: opacity 0.3s; }
+  .copy-feedback.show { opacity: 1; }
+
+  /* Indicador de progresso */
+  .progress-bar {
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    margin-bottom: 1.5rem;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 2px;
+    transition: width 0.4s ease;
+  }
+
+  /* Chips de status */
+  .chip {
+    display: inline-block;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-weight: bold;
+    letter-spacing: 0.03em;
+  }
+
+  .chip-pend { background: var(--warn-light); color: var(--warn-text); }
+  .chip-disp { background: var(--accent-light); color: var(--accent-text); }
+
+  .section-title {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+    margin-top: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  @media (max-width: 480px) {
+    .container { padding: 1rem; }
+    header { padding: 1rem; }
+    .item-row { grid-template-columns: 1fr; }
+    .item-qtd { text-align: left; }
+    .toggle-wrap { align-items: flex-start; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Suprimentos</h1>
+  <span id="data-hoje"></span>
+</header>
+
+<div class="container">
+
+  <!-- API Key -->
+  <div class="setup-card" id="setup-card">
+    <h2>Configuração da API</h2>
+    <div class="api-row">
+      <input type="password" id="api-key-input" placeholder="sk-ant-..." autocomplete="off" />
+      <button class="btn btn-primary" onclick="salvarKey()">Salvar</button>
+    </div>
+    <div class="api-status" id="api-status">Cole sua chave da Anthropic acima para começar.</div>
+  </div>
+
+  <!-- Progress -->
+  <div class="progress-bar">
+    <div class="progress-fill" id="progress" style="width: 0%"></div>
+  </div>
+
+  <!-- STEP 1: Input -->
+  <div class="step active" id="step-input">
+    <div class="card">
+      <span class="label">Mensagens do grupo de WhatsApp</span>
+      <textarea id="msg-input" placeholder="Cole aqui as mensagens. Pode ser de várias obras ao mesmo tempo.
+
+Exemplo:
+Zé (Obra Ipanema): precisa de 20 sacos de cimento e 3 latas de tinta branca, urgente
+Marcos da Barra: manda 10 metros de cabo 2.5, 4 disjuntores 20A e 1 rolo de fita isolante"></textarea>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="analisar()" id="btn-analisar">Analisar pedidos</button>
+        <button class="btn btn-ghost" onclick="document.getElementById('msg-input').value=''">Limpar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 2: Loading -->
+  <div class="step" id="step-loading">
+    <div class="card">
+      <div class="loading">
+        <div class="spinner"></div>
+        Lendo e organizando os pedidos...
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 3: Triagem -->
+  <div class="step" id="step-triagem">
+    <div class="section-title">Marque a disponibilidade de cada item</div>
+    <div id="pedidos-container"></div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="gerarResumo()">Gerar resumo</button>
+      <button class="btn btn-ghost" onclick="ir('step-input', 33)">Voltar</button>
+    </div>
+  </div>
+
+  <!-- STEP 4: Resumo -->
+  <div class="step" id="step-resumo">
+    <div class="section-title">Disponível na loja</div>
+    <div id="resumo-disp-container"></div>
+
+    <div class="section-title">Pendente / comprar</div>
+    <div id="resumo-pend-container"></div>
+
+    <div class="section-title">Texto para copiar</div>
+    <div class="pre-box" id="pre-texto"></div>
+
+    <div class="btn-row" style="margin-top: 12px;">
+      <button class="btn btn-primary" onclick="copiar()">Copiar texto</button>
+      <span class="copy-feedback" id="copy-feedback">Copiado!</span>
+      <button class="btn btn-ghost" onclick="ir('step-triagem', 66)">Voltar</button>
+      <button class="btn btn-ghost" onclick="novoLote()">Novo lote</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+let pedidos = [];
+let apiKey = localStorage.getItem('anthropic_key') || '';
+
+window.onload = () => {
+  const hoje = new Date().toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' });
+  document.getElementById('data-hoje').textContent = hoje;
+
+  if (apiKey) {
+    document.getElementById('api-key-input').value = apiKey;
+    document.getElementById('api-status').textContent = 'Chave salva.';
+    document.getElementById('api-status').className = 'api-status ok';
+    document.getElementById('setup-card').style.borderColor = '#2D5A3D';
+  }
+};
+
+function salvarKey() {
+  const val = document.getElementById('api-key-input').value.trim();
+  if (!val.startsWith('sk-ant-')) {
+    document.getElementById('api-status').textContent = 'Chave inválida. Deve começar com sk-ant-';
+    document.getElementById('api-status').className = 'api-status erro';
+    return;
+  }
+  apiKey = val;
+  localStorage.setItem('anthropic_key', apiKey);
+  document.getElementById('api-status').textContent = 'Chave salva com sucesso!';
+  document.getElementById('api-status').className = 'api-status ok';
+  document.getElementById('setup-card').style.borderColor = '#2D5A3D';
+}
+
+function ir(stepId, progresso) {
+  document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+  document.getElementById(stepId).classList.add('active');
+  document.getElementById('progress').style.width = progresso + '%';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function novoLote() {
+  pedidos = [];
+  document.getElementById('msg-input').value = '';
+  ir('step-input', 0);
+}
+
+async function analisar() {
+  if (!apiKey) { alert('Configure sua chave de API primeiro.'); return; }
+  const msg = document.getElementById('msg-input').value.trim();
+  if (!msg) { alert('Cole as mensagens do WhatsApp antes de continuar.'); return; }
+
+  ir('step-loading', 33);
+
+  const prompt = `Você é um assistente de suprimentos de construtora no Brasil.
+Analise as mensagens do grupo de WhatsApp abaixo e extraia os pedidos de material de construção.
+
+Retorne APENAS um JSON válido, sem texto adicional, sem markdown, sem blocos de código.
+
+Formato exato:
+{
+  "pedidos": [
+    {
+      "obra": "nome da obra ou identificação do remetente",
+      "itens": [
+        { "nome": "nome do material", "quantidade": "quantidade com unidade", "obs": "" }
+      ]
+    }
+  ]
+}
+
+Regras:
+- Se não identificar a obra, use "Obra não identificada"
+- Agrupe itens da mesma obra no mesmo pedido
+- Normalize quantidades escritas por extenso (ex: "vinte" = "20")
+- Corrija erros de digitação óbvios nos nomes dos materiais
+- Se houver urgência mencionada, coloque em obs
+- Mantenha nomes de materiais em português
+
+Mensagens:
+${msg}`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1500,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error?.message || 'Erro na API');
+    }
+
+    const data = await res.json();
+    const text = data.content.map(i => i.text || '').join('');
+    const clean = text.replace(/```json|```/g, '').trim();
+    const parsed = JSON.parse(clean);
+
+    pedidos = parsed.pedidos.map(p => ({
+      ...p,
+      itens: p.itens.map(i => ({ ...i, status: null }))
+    }));
+
+    renderTriagem();
+    ir('step-triagem', 66);
+
+  } catch (err) {
+    ir('step-input', 0);
+    alert('Erro: ' + err.message + '\n\nVerifique se sua chave de API está correta.');
+  }
+}
+
+function renderTriagem() {
+  const c = document.getElementById('pedidos-container');
+  c.innerHTML = pedidos.map((p, pi) => `
+    <div class="pedido-card">
+      <div class="pedido-header">
+        <span class="pedido-obra">${p.obra}</span>
+        <span class="pedido-count">${p.itens.length} ${p.itens.length === 1 ? 'item' : 'itens'}</span>
+      </div>
+      ${p.itens.map((it, ii) => `
+        <div class="item-row">
+          <div>
+            <div class="item-nome">${it.nome}</div>
+            ${it.obs ? `<div style="font-size:11px;color:#A8A39B;margin-top:2px;font-style:italic">${it.obs}</div>` : ''}
+            <input class="obs-field" placeholder="Observação..." value="${it.obs || ''}"
+              oninput="setObs(${pi},${ii},this.value)" />
+          </div>
+          <div class="item-qtd">${it.quantidade}</div>
+          <div class="toggle-wrap">
+            <div class="toggle-group">
+              <button class="toggle-btn ${it.status === 'disp' ? 'disp' : ''}"
+                onclick="setStatus(${pi},${ii},'disp')">Na loja</button>
+              <button class="toggle-btn ${it.status === 'pend' ? 'pend' : ''}"
+                onclick="setStatus(${pi},${ii},'pend')">Pendente</button>
+            </div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `).join('');
+}
+
+function setStatus(pi, ii, status) {
+  pedidos[pi].itens[ii].status = pedidos[pi].itens[ii].status === status ? null : status;
+  renderTriagem();
+}
+
+function setObs(pi, ii, val) {
+  pedidos[pi].itens[ii].obs = val;
+}
+
+function gerarResumo() {
+  const hoje = new Date().toLocaleDateString('pt-BR');
+  const dispGrupos = [];
+  const pendGrupos = [];
+
+  pedidos.forEach(p => {
+    const d = p.itens.filter(i => i.status === 'disp');
+    const pe = p.itens.filter(i => i.status === 'pend');
+    if (d.length) dispGrupos.push({ obra: p.obra, itens: d });
+    if (pe.length) pendGrupos.push({ obra: p.obra, itens: pe });
+  });
+
+  // Render visual
+  const renderGrupos = (grupos, containerId) => {
+    const c = document.getElementById(containerId);
+    if (!grupos.length) {
+      c.innerHTML = '<p style="color:var(--text-light);font-size:13px;font-style:italic;padding:4px 0;">Nenhum item nesta categoria.</p>';
+      return;
+    }
+    c.innerHTML = grupos.map(g => `
+      <div class="resumo-section">
+        <div class="resumo-header ${containerId.includes('disp') ? 'disp' : 'pend'}">${g.obra}</div>
+        ${g.itens.map(i => `
+          <div class="resumo-obra">
+            <div class="resumo-item-linha">• ${i.quantidade} de ${i.nome}${i.obs ? ' <span style="color:var(--text-muted);font-size:12px;">— ' + i.obs + '</span>' : ''}</div>
+          </div>
+        `).join('')}
+      </div>
+    `).join('');
+  };
+
+  renderGrupos(dispGrupos, 'resumo-disp-container');
+  renderGrupos(pendGrupos, 'resumo-pend-container');
+
+  // Texto formatado
+  let txt = `PEDIDOS DE SUPRIMENTOS — ${hoje}\n${'─'.repeat(36)}\n`;
+
+  if (dispGrupos.length) {
+    txt += `\nDISPONIVEL NA LOJA:\n`;
+    dispGrupos.forEach(g => {
+      txt += `\n  ${g.obra.toUpperCase()}\n`;
+      g.itens.forEach(i => {
+        txt += `  • ${i.quantidade} de ${i.nome}`;
+        if (i.obs) txt += ` (${i.obs})`;
+        txt += '\n';
+      });
+    });
+  }
+
+  if (pendGrupos.length) {
+    txt += `\nPENDENTE / COMPRAR:\n`;
+    pendGrupos.forEach(g => {
+      txt += `\n  ${g.obra.toUpperCase()}\n`;
+      g.itens.forEach(i => {
+        txt += `  • ${i.quantidade} de ${i.nome}`;
+        if (i.obs) txt += ` (${i.obs})`;
+        txt += '\n';
+      });
+    });
+  }
+
+  txt += `\n${'─'.repeat(36)}\nGerado via app de suprimentos`;
+
+  document.getElementById('pre-texto').textContent = txt;
+  ir('step-resumo', 100);
+}
+
+function copiar() {
+  const txt = document.getElementById('pre-texto').textContent;
+  navigator.clipboard.writeText(txt).then(() => {
+    const fb = document.getElementById('copy-feedback');
+    fb.classList.add('show');
+    setTimeout(() => fb.classList.remove('show'), 2000);
+  });
+}
+</script>
+</body>
+</html>
